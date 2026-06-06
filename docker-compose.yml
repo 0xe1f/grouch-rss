@@ -1,0 +1,47 @@
+services:
+
+  # ---------------------------------------------------------------------------
+  # Development server — http://localhost:8080/<feed>?token=dev
+  # Usage: docker compose up server
+  # ---------------------------------------------------------------------------
+  server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      FEED_TOKEN: dev
+    volumes:
+      - .:/app
+    # Install deps on first start (vendor/ is bind-mounted so it persists locally)
+    command: >
+      sh -c "composer install --no-interaction && php -S 0.0.0.0:8080 index.php"
+
+  # ---------------------------------------------------------------------------
+  # Golden tests (no network) — docker compose run --rm test-golden
+  # ---------------------------------------------------------------------------
+  test-golden:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    profiles:
+      - golden
+    volumes:
+      - .:/app
+    command: >
+      sh -c "composer install --no-interaction && vendor/bin/phpunit --testsuite golden --group golden"
+
+  # ---------------------------------------------------------------------------
+  # Live / sanity tests (needs internet) — docker compose run --rm test-live
+  # ---------------------------------------------------------------------------
+  test-live:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    profiles:
+      - live
+    volumes:
+      - .:/app
+    command: >
+      sh -c "composer install --no-interaction && vendor/bin/phpunit --testsuite live --group live"

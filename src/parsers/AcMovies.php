@@ -1,0 +1,89 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Grouch\parsers;
+
+/**
+ * American Cinematheque "Now Showing" feed.
+ *
+ * Fetches from the WordPress/Algolia JSON endpoint and returns upcoming events
+ * for the next 30 days.
+ */
+class AcMovies implements ParserInterface
+{
+    private const HOME_URL = 'https://www.americancinematheque.com/now-showing/';
+    private const FEED_URL = 'https://www.americancinematheque.com/wp-json/wp/v2/algolia_get_events'
+        . '?environment=production&startDate=%d&endDate=%d';
+    private const TZ = 'US/Pacific';
+
+    public function parse(string $feedUrl, callable $fetch): ParseResult
+    {
+        $tz    = new \DateTimeZone(self::TZ);
+        $now   = new \DateTimeImmutable('now', $tz);
+        $start = $now->setTime(0, 0, 0);
+        $end   = $start->modify('+30 days');
+
+        $apiUrl = sprintf(self::FEED_URL, $start->getTimestamp(), $end->getTimestamp());
+        $body   = $fetch($apiUrl);
+        $doc    = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
+
+        $hits = array_filter(
+            $doc['hits'] ?? [],
+            fn(array $hit) => ($hit['post_type'] ?? '') === 'event',
+        );
+
+        $entries = array_map(fn(array $hit) => $this->makeEntry($hit, $now, $tz), array_values($hits));
+
+        return new ParseResult(
+            title:       'Now Showing - American Cinematheque',
+            feedUrl:     $feedUrl,
+            siteUrl:     self::HOME_URL,
+            description: '',
+            entries:     $entries,
+        );
+    }
+
+    private function makeEntry(array $blob, \DateTimeImmutable $now, \DateTimeZone $tz): ParseEntry
+    {
+        $startDt = \DateTimeImmutable::createFromFormat(
+            'Ymd H:i:s',
+            ($blob['event_start_date'] ?? '') . ' ' . ($blob['event_start_time'] ?? '00:00:00'),
+            $tz,
+        ) ?: $now;
+
+        $title = trim($blob['title'] ?? '');
+        $title = $title . ' (' . $startDt->format('D M j') . ')';
+
+        // event_card_excerpt may contain HTML markup; strip tags for plain-text use.
+        $synopsis = trim(strip_tags($blob['event_card_excerpt'] ?? ''));
+        $html     = $this->buildHtml($startDt, $synopsis, $blob['event_card_image'] ?? null);
+
+        return new ParseEntry(
+            guid:        (string) ($blob['objectID'] ?? ''),
+            title:       $title,
+            url:         trim($blob['url'] ?? ''),
+            publishedAt: \DateTimeImmutable::createFromFormat('U', (string) $now->getTimestamp()),
+            html:        $html,
+            summary:     $synopsis,
+            author:      '',
+        );
+    }
+
+    private function buildHtml(\DateTimeImmutable $startDt, string $synopsis, ?array $imageData): string
+    {
+        $parts = [];
+        $parts[] = '<p>' . htmlspecialchars($startDt->format('D M d | H:i'), ENT_XML1) . '</p>';
+
+        if ($synopsis !== '') {
+            $parts[] = '<p>' . htmlspecialchars($synopsis, ENT_XML1) . '</p>';
+        }
+
+        $imgUrl = $imageData['url'] ?? '';
+        if ($imgUrl !== '') {
+            $parts[] = '<img src="' . htmlspecialchars($imgUrl, ENT_XML1 | ENT_QUOTES) . '" />';
+        }
+
+        return '<div>' . "\n" . implode("\n", $parts) . "\n" . '</div>';
+    }
+}
