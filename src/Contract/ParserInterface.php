@@ -16,22 +16,16 @@
 
 declare(strict_types=1);
 
-namespace Grouch\Tests;
+namespace Grouch\Contract;
 
-use Grouch\Contract\ParserInterface;
-use Grouch\parsers\Egyptian;
-use PHPUnit\Framework\Attributes\Group;
-
-#[Group('live')]
-class EgyptianLiveTest extends LiveTestCase
+interface ParserInterface
 {
-    protected function getParser(): ParserInterface
-    {
-        return new Egyptian();
-    }
-
-    protected function getFeedUrl(): string
-    {
-        return 'https://www.egyptiantheatre.com/';
-    }
+    /**
+     * Fetch and parse a feed.
+     *
+     * @param string   $feedUrl The self-URL of this feed (embedded in the RSS output).
+     * @param callable $fetch   fn(string $url): string — returns response body.
+     *                          Injected so tests can supply a mock without HTTP.
+     */
+    public function parse(string $feedUrl, callable $fetch): ParseResult;
 }

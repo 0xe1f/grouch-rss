@@ -16,22 +16,22 @@
 
 declare(strict_types=1);
 
-namespace Grouch\Tests;
+namespace Grouch\Contract;
 
-use Grouch\Contract\ParserInterface;
-use Grouch\parsers\Egyptian;
-use PHPUnit\Framework\Attributes\Group;
-
-#[Group('live')]
-class EgyptianLiveTest extends LiveTestCase
+/**
+ * Intermediate data structure returned by every parser.
+ *
+ * Decouples fetching/parsing logic from RSS XML generation:
+ * parsers populate this, RssBuilder consumes it.
+ */
+class ParseResult
 {
-    protected function getParser(): ParserInterface
-    {
-        return new Egyptian();
-    }
-
-    protected function getFeedUrl(): string
-    {
-        return 'https://www.egyptiantheatre.com/';
-    }
+    /** @param ParseEntry[] $entries */
+    public function __construct(
+        public readonly string $title,
+        public readonly string $feedUrl,
+        public readonly string $siteUrl,
+        public readonly string $description,
+        public readonly array $entries,
+    ) {}
 }

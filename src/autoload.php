@@ -16,22 +16,17 @@
 
 declare(strict_types=1);
 
-namespace Grouch\Tests;
-
-use Grouch\Contract\ParserInterface;
-use Grouch\parsers\Egyptian;
-use PHPUnit\Framework\Attributes\Group;
-
-#[Group('live')]
-class EgyptianLiveTest extends LiveTestCase
-{
-    protected function getParser(): ParserInterface
-    {
-        return new Egyptian();
+/**
+ * Minimal PSR-4 autoloader for the Grouch\ namespace.
+ * Used in production — no Composer required on the server.
+ */
+spl_autoload_register(static function (string $class): void {
+    if (!str_starts_with($class, 'Grouch\\')) {
+        return;
     }
-
-    protected function getFeedUrl(): string
-    {
-        return 'https://www.egyptiantheatre.com/';
+    $relative = substr($class, strlen('Grouch\\'));
+    $file = __DIR__ . '/' . str_replace('\\', '/', $relative) . '.php';
+    if (is_file($file)) {
+        require_once $file;
     }
-}
+});

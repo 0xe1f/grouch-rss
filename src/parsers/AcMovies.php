@@ -1,8 +1,29 @@
 <?php
 
+// Copyright 2026 Akop Karapetyan
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 declare(strict_types=1);
 
 namespace Grouch\parsers;
+
+use DateTimeImmutable;
+use DateTimeInterface;
+use DateTimeZone;
+use Grouch\Contract\ParseEntry;
+use Grouch\Contract\ParserInterface;
+use Grouch\Contract\ParseResult;
 
 /**
  * American Cinematheque "Now Showing" feed.
@@ -19,8 +40,8 @@ class AcMovies implements ParserInterface
 
     public function parse(string $feedUrl, callable $fetch): ParseResult
     {
-        $tz    = new \DateTimeZone(self::TZ);
-        $now   = new \DateTimeImmutable('now', $tz);
+        $tz    = new DateTimeZone(self::TZ);
+        $now   = new DateTimeImmutable('now', $tz);
         $start = $now->setTime(0, 0, 0);
         $end   = $start->modify('+30 days');
 
@@ -44,9 +65,9 @@ class AcMovies implements ParserInterface
         );
     }
 
-    private function makeEntry(array $blob, \DateTimeImmutable $now, \DateTimeZone $tz): ParseEntry
+    private function makeEntry(array $blob, DateTimeImmutable $now, DateTimeZone $tz): ParseEntry
     {
-        $startDt = \DateTimeImmutable::createFromFormat(
+        $startDt = DateTimeImmutable::createFromFormat(
             'Ymd H:i:s',
             ($blob['event_start_date'] ?? '') . ' ' . ($blob['event_start_time'] ?? '00:00:00'),
             $tz,
@@ -63,14 +84,14 @@ class AcMovies implements ParserInterface
             guid:        (string) ($blob['objectID'] ?? ''),
             title:       $title,
             url:         trim($blob['url'] ?? ''),
-            publishedAt: \DateTimeImmutable::createFromFormat('U', (string) $now->getTimestamp()),
+            publishedAt: DateTimeImmutable::createFromFormat('U', (string) $now->getTimestamp()),
             html:        $html,
             summary:     $synopsis,
             author:      '',
         );
     }
 
-    private function buildHtml(\DateTimeImmutable $startDt, string $synopsis, ?array $imageData): string
+    private function buildHtml(DateTimeImmutable $startDt, string $synopsis, ?array $imageData): string
     {
         $parts = [];
         $parts[] = '<p>' . htmlspecialchars($startDt->format('D M d | H:i'), ENT_XML1) . '</p>';

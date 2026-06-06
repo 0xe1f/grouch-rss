@@ -16,22 +16,19 @@
 
 declare(strict_types=1);
 
-namespace Grouch\Tests;
+namespace Grouch\Contract;
 
-use Grouch\Contract\ParserInterface;
-use Grouch\parsers\Egyptian;
-use PHPUnit\Framework\Attributes\Group;
+use DateTimeInterface;
 
-#[Group('live')]
-class EgyptianLiveTest extends LiveTestCase
+class ParseEntry
 {
-    protected function getParser(): ParserInterface
-    {
-        return new Egyptian();
-    }
-
-    protected function getFeedUrl(): string
-    {
-        return 'https://www.egyptiantheatre.com/';
-    }
+    public function __construct(
+        public readonly string $guid,
+        public readonly string $title,
+        public readonly string $url,
+        public readonly DateTimeInterface $publishedAt,
+        public readonly string $html = '',
+        public readonly string $summary = '',
+        public readonly string $author = '',
+    ) {}
 }

@@ -27,12 +27,15 @@ jobs:
           php-version: "8.3"
           extensions: curl, json
           coverage: none
+          tools: none
 
-      - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+      - name: Download PHPUnit
+        run: |
+          curl -sL https://phar.phpunit.de/phpunit-11.phar -o phpunit.phar
+          chmod +x phpunit.phar
 
       - name: Run golden tests
-        run: vendor/bin/phpunit --testsuite golden --group golden
+        run: php phpunit.phar --testsuite golden --group golden
 
   # ---------------------------------------------------------------------------
   # Live tests: hit real websites, sanity-check results.
@@ -52,9 +55,12 @@ jobs:
           php-version: "8.3"
           extensions: curl, json
           coverage: none
+          tools: none
 
-      - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+      - name: Download PHPUnit
+        run: |
+          curl -sL https://phar.phpunit.de/phpunit-11.phar -o phpunit.phar
+          chmod +x phpunit.phar
 
       - name: Run live tests
-        run: vendor/bin/phpunit --testsuite live --group live
+        run: php phpunit.phar --testsuite live --group live

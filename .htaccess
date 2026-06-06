@@ -1,14 +1,11 @@
 Options -Indexes
-
-# Block direct HTTP access to all .php files except index.php
-<FilesMatch "\.php$">
-    Require all denied
-</FilesMatch>
-<Files "index.php">
-    Require all granted
-</Files>
-
-# Route all requests through index.php
 RewriteEngine On
+
+# Return 404 (not 403) for direct requests to any .php file except index.php
+RewriteCond %{REQUEST_URI} \.php$
+RewriteCond %{REQUEST_URI} !/index\.php$
+RewriteRule ^ - [R=404,L]
+
+# Route all other non-file requests through index.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^ index.php [L]

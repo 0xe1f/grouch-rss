@@ -1,7 +1,7 @@
 <?php
 
-// Copy this file to config.php and set your token.
-// config.php is never committed (see .gitignore).
+// Deployed automatically by deploy.sh. Set FEED_TOKEN to a long random secret.
+// This file is not committed (see .gitignore).
 // In Docker dev the FEED_TOKEN environment variable is used instead.
 
 define('FEED_TOKEN', 'change-me-to-a-long-random-secret');

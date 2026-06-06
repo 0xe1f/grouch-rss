@@ -1,8 +1,29 @@
 <?php
 
+// Copyright 2026 Akop Karapetyan
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 declare(strict_types=1);
 
 namespace Grouch\parsers;
+
+use DateTimeImmutable;
+use DateTimeInterface;
+use Grouch\Contract\ParseEntry;
+use Grouch\Contract\ParserInterface;
+use Grouch\Contract\ParseResult;
+use RuntimeException;
 
 /**
  * Egyptian Theatre "Special Engagements" feed.
@@ -23,7 +44,7 @@ class Egyptian implements ParserInterface
         $html  = $fetch(self::TITLES_URL);
         $meta  = $this->extractMeta($html);
         $films = $this->extractFilms($html);
-        $now   = new \DateTimeImmutable();
+        $now   = new DateTimeImmutable();
 
         $entries = array_map(fn(array $blob) => $this->makeEntry($blob), $films);
 
@@ -73,7 +94,7 @@ class Egyptian implements ParserInterface
         );
 
         if (count($matches[1]) !== 1) {
-            throw new \RuntimeException(
+            throw new RuntimeException(
                 'Expected exactly 1 Next.js data blob, found ' . count($matches[1]),
             );
         }
@@ -82,7 +103,7 @@ class Egyptian implements ParserInterface
         $escaped   = $matches[1][0];
         $unescaped = json_decode('"' . $escaped . '"');
         if ($unescaped === null) {
-            throw new \RuntimeException('Failed to decode Next.js JSON blob');
+            throw new RuntimeException('Failed to decode Next.js JSON blob');
         }
 
         $data     = json_decode($unescaped, true, 512, JSON_THROW_ON_ERROR);
@@ -96,7 +117,7 @@ class Egyptian implements ParserInterface
         }
 
         if ($filmData === null) {
-            throw new \RuntimeException('Could not locate filmData in Next.js blob');
+            throw new RuntimeException('Could not locate filmData in Next.js blob');
         }
 
         return array_column($filmData, 'attributes');
@@ -127,17 +148,17 @@ class Egyptian implements ParserInterface
         $synopsis = trim($blob['Synopsis'] ?? '');
         $director = trim($blob['Director'] ?? '');
 
-        $opening = \DateTimeImmutable::createFromFormat('Y-m-d', $blob['OpeningDate'] ?? '') ?: new \DateTimeImmutable();
-        $closing = \DateTimeImmutable::createFromFormat('Y-m-d', $blob['ClosingDate'] ?? '') ?: $opening;
+        $opening = DateTimeImmutable::createFromFormat('Y-m-d', $blob['OpeningDate'] ?? '') ?: new DateTimeImmutable();
+        $closing = DateTimeImmutable::createFromFormat('Y-m-d', $blob['ClosingDate'] ?? '') ?: $opening;
 
         $timeRange = ($opening->format('Ymd') !== $closing->format('Ymd'))
             ? $opening->format('D M j') . ' - ' . $closing->format('D M j')
             : $opening->format('D M j');
 
-        $updatedAt = \DateTimeImmutable::createFromFormat(
-            \DateTimeInterface::ATOM,
+        $updatedAt = DateTimeImmutable::createFromFormat(
+            DateTimeInterface::ATOM,
             $blob['updatedAt'] ?? '',
-        ) ?: new \DateTimeImmutable();
+        ) ?: new DateTimeImmutable();
 
         return new ParseEntry(
             guid:        $slug,
@@ -184,7 +205,9 @@ class Egyptian implements ParserInterface
         $formats = $blob['Poster']['data']['attributes']['formats'] ?? [];
         foreach (['medium', 'small', 'thumbnail'] as $size) {
             if (isset($formats[$size]['url'])) {
-                return self::IMAGE_PREFIX . ltrim($formats[$size]['url'], '/');
+                $url = $formats[$size]['url'];
+                // API may return a relative path or a full absolute URL.
+                return str_starts_with($url, 'http') ? $url : self::IMAGE_PREFIX . ltrim($url, '/');
             }
         }
         return '';

@@ -2,46 +2,44 @@ services:
 
   # ---------------------------------------------------------------------------
   # Development server — http://localhost:8080/<feed>?token=dev
-  # Usage: docker compose up server
+  # Usage: docker compose -f docker/docker-compose.yml up server
   # ---------------------------------------------------------------------------
   server:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile
     ports:
       - "8080:8080"
     environment:
       FEED_TOKEN: dev
     volumes:
-      - .:/app
-    # Install deps on first start (vendor/ is bind-mounted so it persists locally)
-    command: >
-      sh -c "composer install --no-interaction && php -S 0.0.0.0:8080 index.php"
+      - ..:/app
+    command: php -S 0.0.0.0:8080 index.php
 
   # ---------------------------------------------------------------------------
-  # Golden tests (no network) — docker compose run --rm test-golden
+  # Golden tests (no network)
+  # Usage: docker compose -f docker/docker-compose.yml run --rm test-golden
   # ---------------------------------------------------------------------------
   test-golden:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile
     profiles:
       - golden
     volumes:
-      - .:/app
-    command: >
-      sh -c "composer install --no-interaction && vendor/bin/phpunit --testsuite golden --group golden"
+      - ..:/app
+    command: phpunit --testsuite golden --group golden
 
   # ---------------------------------------------------------------------------
-  # Live / sanity tests (needs internet) — docker compose run --rm test-live
+  # Live / sanity tests (needs internet)
+  # Usage: docker compose -f docker/docker-compose.yml run --rm test-live
   # ---------------------------------------------------------------------------
   test-live:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile
     profiles:
       - live
     volumes:
-      - .:/app
-    command: >
-      sh -c "composer install --no-interaction && vendor/bin/phpunit --testsuite live --group live"
+      - ..:/app
+    command: phpunit --testsuite live --group live

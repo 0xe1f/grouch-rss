@@ -1,8 +1,27 @@
 <?php
 
+// Copyright 2026 Akop Karapetyan
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 declare(strict_types=1);
 
 namespace Grouch\Rss;
+
+use DateTimeInterface;
+use DOMDocument;
+use DOMElement;
+use LogicException;
 
 /**
  * Builds a valid RSS 2.0 document from feed metadata and items.
@@ -15,6 +34,7 @@ namespace Grouch\Rss;
  *   $b = new RssBuilder();
  *   $b->feed(title: 'My Feed', url: '...', siteUrl: '...', description: '...');
  *   $b->item(guid: 'abc', title: 'Title', url: '...', publishedAt: new \DateTimeImmutable(), html: '<p>Hi</p>');
+ * (In your own code, import DateTimeImmutable with `use` — no backslash needed.)
  *   echo $b->toXml();
  */
 class RssBuilder
@@ -37,7 +57,7 @@ class RssBuilder
         string $guid,
         string $title,
         string $url,
-        \DateTimeInterface $publishedAt,
+        DateTimeInterface $publishedAt,
         string $html = '',
         string $summary = '',
         string $author = '',
@@ -49,10 +69,10 @@ class RssBuilder
     public function toXml(): string
     {
         if ($this->feed === null) {
-            throw new \LogicException('feed() must be called before toXml()');
+            throw new LogicException('feed() must be called before toXml()');
         }
 
-        $doc = new \DOMDocument('1.0', 'UTF-8');
+        $doc = new DOMDocument('1.0', 'UTF-8');
         $doc->formatOutput = true;
 
         $rss = $doc->createElement('rss');
@@ -80,7 +100,7 @@ class RssBuilder
         return $doc->saveXML() ?: '';
     }
 
-    private function buildItem(\DOMDocument $doc, RssItem $item): \DOMElement
+    private function buildItem(DOMDocument $doc, RssItem $item): DOMElement
     {
         $el = $doc->createElement('item');
 
@@ -110,8 +130,8 @@ class RssBuilder
     }
 
     private function appendText(
-        \DOMDocument $doc,
-        \DOMElement $parent,
+        DOMDocument $doc,
+        DOMElement $parent,
         string $tag,
         string $value,
     ): void {

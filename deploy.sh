@@ -1,54 +1,94 @@
 #!/usr/bin/env bash
 # Deploy grouch-rss to a remote (or local) Apache/PHP host.
 #
-# Prerequisites:
-#   - Docker must be running (used to build vendor/ with no-dev deps)
-#   - SSH key-based access to DEPLOY_USER@DEPLOY_HOST
+# USAGE
+#   ./deploy.sh [--skip-config] <destination>
 #
-# Usage:
-#   DEPLOY_USER=myuser DEPLOY_HOST=example.com DEPLOY_PATH=/home/myuser/public_html/feeds ./deploy.sh
+#   <destination>    Local path or rsync/scp-style remote, e.g.
+#                      /var/www/html/feeds          (local)
+#                      akop@example.com:public_html/feeds  (remote)
 #
-# Or set the variables in your shell profile / CI secrets.
+#   --skip-config    Do not copy config.php (use after first deployment
+#                    if you've customised the token on the server)
+#
+# PREREQUISITES
+#   - SSH key-based access to the target host (no password prompt)
+#   - No Composer or Docker required — production uses a built-in autoloader
+#
+# SUBSEQUENT DEPLOYMENTS
+#   Re-run this script any time. By default config.php is included.
+#   Pass --skip-config to leave an existing server config.php untouched.
 
 set -euo pipefail
 
-: "${DEPLOY_USER:?DEPLOY_USER is required}"
-: "${DEPLOY_HOST:?DEPLOY_HOST is required}"
-: "${DEPLOY_PATH:?DEPLOY_PATH is required}"
+SKIP_CONFIG=false
+
+# Parse flags
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --skip-config) SKIP_CONFIG=true; shift ;;
+        -*) echo "Unknown option: $1" >&2; exit 1 ;;
+        *) break ;;
+    esac
+done
+
+if [[ $# -ne 1 ]]; then
+    echo "Usage: ./deploy.sh [--skip-config] <destination>" >&2
+    echo "  local:  ./deploy.sh /var/www/html/feeds" >&2
+    echo "  remote: ./deploy.sh akop@example.com:public_html/feeds" >&2
+    exit 1
+fi
+
+DESTINATION="$1"
+
+# Determine whether this is a remote (user@host:path) or local path.
+if [[ "$DESTINATION" == *:* ]]; then
+    IS_REMOTE=true
+    REMOTE="${DESTINATION%%:*}"      # user@host
+    REMOTE_PATH="${DESTINATION#*:}"  # path on the remote host
+else
+    IS_REMOTE=false
+    REMOTE_PATH="$DESTINATION"
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "==> Building vendor/ (no-dev) inside Docker..."
-docker run --rm \
-  -v "${SCRIPT_DIR}:/app" \
-  -w /app \
-  "$(docker build -q -f "${SCRIPT_DIR}/docker/Dockerfile" "${SCRIPT_DIR}")" \
-  composer install --no-dev --optimize-autoloader --no-interaction
+RSYNC_EXCLUDES=(
+    --exclude='.git/'
+    --exclude='.github/'
+    --exclude='tests/'
+    --exclude='docker/'
+    --exclude='docs/'
+    --exclude='phpunit.xml'
+    --exclude='deploy.sh'
+    --exclude='.gitignore'
+    --exclude='config.php.example'
+    --exclude='README.md'
+    --exclude='LICENSE'
+)
 
-echo "==> Syncing to ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/ ..."
-rsync -avz --delete \
-  --exclude='.git/' \
-  --exclude='.github/' \
-  --exclude='tests/' \
-  --exclude='docker/' \
-  --exclude='docker-compose.yml' \
-  --exclude='phpunit.xml' \
-  --exclude='composer.json' \
-  --exclude='composer.lock' \
-  --exclude='config.php' \
-  --exclude='deploy.sh' \
-  --exclude='.gitignore' \
-  --exclude='composer' \
-  "${SCRIPT_DIR}/" "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
+if [[ "$SKIP_CONFIG" == true ]]; then
+    RSYNC_EXCLUDES+=(--exclude='config.php')
+    echo "==> Syncing to ${DESTINATION}/ (skipping config.php) ..."
+else
+    echo "==> Syncing to ${DESTINATION}/ ..."
+fi
+
+rsync -avz --delete "${RSYNC_EXCLUDES[@]}" "${SCRIPT_DIR}/" "${DESTINATION}/"
 
 echo "==> Setting permissions..."
-# shellcheck disable=SC2087
-ssh "${DEPLOY_USER}@${DEPLOY_HOST}" bash -s <<EOF
-  find "${DEPLOY_PATH}" -type d -exec chmod 755 {} \;
-  find "${DEPLOY_PATH}" -type f -exec chmod 644 {} \;
+if [[ "$IS_REMOTE" == true ]]; then
+    # shellcheck disable=SC2087
+    ssh "${REMOTE}" bash -s <<EOF
+  find "${REMOTE_PATH}" -type d -exec chmod 755 {} \;
+  find "${REMOTE_PATH}" -type f -exec chmod 644 {} \;
 EOF
+else
+    find "${REMOTE_PATH}" -type d -exec chmod 755 {} \;
+    find "${REMOTE_PATH}" -type f -exec chmod 644 {} \;
+fi
 
-echo "==> Done. Remember to create config.php on the server if you haven't already:"
-echo "    ssh ${DEPLOY_USER}@${DEPLOY_HOST}"
-echo "    cp ${DEPLOY_PATH}/config.php.example ${DEPLOY_PATH}/config.php"
-echo "    \$EDITOR ${DEPLOY_PATH}/config.php"
+echo "==> Done."
+if [[ "$SKIP_CONFIG" == false ]]; then
+    echo "    config.php was deployed. Edit it on the server to set FEED_TOKEN if needed."
+fi
