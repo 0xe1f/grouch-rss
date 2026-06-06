@@ -1,8 +1,8 @@
 # grouch-rss
 
-A lightweight PHP application that turns venue event listings into private RSS feeds, accessible to any feed reader that supports bearer tokens.
+A lightweight PHP application that generates RSS feeds for providers that don't generate their own.
 
-Requires PHP 8.3+ and Apache with `mod_rewrite`. No framework, no Composer on the server.
+For supported list, see [parsers](https://github.com/0xe1f/grouch-rss/tree/master/src/parsers).
 
 ## Local development
 
@@ -118,15 +118,17 @@ class YourParser implements ParserInterface
 
 `ParseEntry` fields:
 
-| Field         | Type                | Required | Notes                                              |
-|---------------|---------------------|----------|----------------------------------------------------|
-| `guid`        | `string`            | Yes      | Stable, unique identifier for the item             |
-| `title`       | `string`            | Yes      |                                                    |
-| `url`         | `string`            | Yes      | Canonical permalink                                |
-| `publishedAt` | `DateTimeInterface` | Yes      |                                                    |
-| `html`        | `string`            | No       | Rich body; takes precedence over `summary` in XML  |
-| `summary`     | `string`            | No       | Plain-text fallback when `html` is empty           |
-| `author`      | `string`            | No       |                                                    |
+
+| Field         | Type                | Required | Notes                                             |
+| ------------- | ------------------- | -------- | ------------------------------------------------- |
+| `guid`        | `string`            | Yes      | Stable, unique identifier for the item            |
+| `title`       | `string`            | Yes      |                                                   |
+| `url`         | `string`            | Yes      | Canonical permalink                               |
+| `publishedAt` | `DateTimeInterface` | Yes      |                                                   |
+| `html`        | `string`            | No       | Rich body; takes precedence over `summary` in XML |
+| `summary`     | `string`            | No       | Plain-text fallback when `html` is empty          |
+| `author`      | `string`            | No       |                                                   |
+
 
 ### 2. Register the parser
 
@@ -218,7 +220,7 @@ Register it in `phpunit.xml` under the `live` testsuite.
 
 ## Architecture
 
-See [`docs/plans/architecture.md`](docs/plans/architecture.md).
+See `[docs/plans/architecture.md](docs/plans/architecture.md)`.
 
 ## License
 
