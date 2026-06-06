@@ -88,7 +88,7 @@ class AcMovies implements ParserInterface
         $startDt = DateTimeImmutable::createFromFormat('Ymd H:i:s', "$date $time", $tz)
             ?: (new DateTimeImmutable($date ?: '1970-01-01', $tz))->setTime(0, 0, 0);
 
-        $title = trim($blob['title'] ?? '');
+        $title = html_entity_decode(trim($blob['title'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $title = $title . ' (' . $startDt->format('D M j') . ')';
 
         // event_card_excerpt may contain HTML markup; strip tags for plain-text use.

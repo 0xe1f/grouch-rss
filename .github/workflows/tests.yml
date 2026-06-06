@@ -5,6 +5,8 @@ on:
     branches: ["**"]
   pull_request:
     branches: ["**"]
+  schedule:
+    - cron: "0 9 * * 1"  # every Monday at 09:00 UTC
 
 permissions:
   contents: read
@@ -13,10 +15,12 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # Golden tests: fixture-driven, no network required, always must pass.
+  # Skipped on scheduled runs (live tests cover that cadence).
   # ---------------------------------------------------------------------------
   golden:
     name: Golden tests
     runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
 
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +43,7 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # Live tests: hit real websites, sanity-check results.
+  # Runs on push/PR and on the weekly schedule.
   # Network flakiness or site changes can cause failures; marked non-blocking.
   # ---------------------------------------------------------------------------
   live:
