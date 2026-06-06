@@ -28,31 +28,43 @@ class Auth
      * token via the "token" query parameter as a fallback (useful for RSS
      * readers that cannot set custom headers).
      */
-    public static function requireBearer(string $authHeader, string $expectedToken): void
+    /**
+     * Returns true if the request carries a valid bearer token, false otherwise.
+     * Never terminates the request.
+     */
+    public static function verifyBearer(string $authHeader, string $expectedToken): bool
     {
         if ($expectedToken === '') {
-            // No token configured — fail closed rather than open.
-            self::deny('Feed token is not configured on this server.');
+            return false;
         }
 
-        // Check Authorization header first.
         if (str_starts_with($authHeader, 'Bearer ')) {
             $provided = substr($authHeader, 7);
             if (hash_equals($expectedToken, $provided)) {
-                return;
+                return true;
             }
         }
 
-        // Fallback: ?token=... query param (for feed readers that can't set headers).
-        // Read from the raw query string so that literal '+' in the token is not
-        // decoded as a space (which is what $_GET does with form-encoded values).
         preg_match('/(?:^|&)token=([^&]*)/', $_SERVER['QUERY_STRING'] ?? '', $m);
         $queryToken = isset($m[1]) ? rawurldecode($m[1]) : '';
-        if ($queryToken !== '' && hash_equals($expectedToken, $queryToken)) {
-            return;
-        }
+        return $queryToken !== '' && hash_equals($expectedToken, $queryToken);
+    }
 
-        self::deny('Invalid or missing Bearer token.');
+    /**
+     * Terminate the request with 401 unless the request carries a valid bearer token.
+     *
+     * Accepts both "Authorization: Bearer <token>" (standard header) and the
+     * token via the "token" query parameter as a fallback (useful for RSS
+     * readers that cannot set custom headers).
+     */
+    public static function requireBearer(string $authHeader, string $expectedToken): void
+    {
+        if ($expectedToken === '') {
+            self::deny('Feed token is not configured on this server.');
+        }
+        if (!self::verifyBearer($authHeader, $expectedToken)) {
+            self::deny('Invalid or missing Bearer token.');
+        }
     }
 
     private static function deny(string $message): never
