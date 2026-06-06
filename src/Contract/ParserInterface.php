@@ -21,6 +21,11 @@ namespace Grouch\Contract;
 interface ParserInterface
 {
     /**
+     * The URL path segment this parser handles, e.g. 'ac-movies'.
+     * Every concrete parser must define: public const string ROUTE = '...';
+     */
+
+    /**
      * Fetch and parse a feed.
      *
      * @param string   $feedUrl The self-URL of this feed (embedded in the RSS output).

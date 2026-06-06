@@ -33,6 +33,8 @@ use RuntimeException;
  */
 class Egyptian implements ParserInterface
 {
+    public const string ROUTE = 'egyptian';
+
     private const HOME_URL        = 'https://www.egyptiantheatre.com/';
     private const TITLES_URL      = 'https://www.egyptiantheatre.com/special-engagements';
     private const IMAGE_PREFIX    = 'https://cms.ntflxthtrs.com/';

@@ -20,9 +20,8 @@ require_once __DIR__ . '/src/autoload.php';
 
 use Grouch\Auth;
 use Grouch\Contract\ParseResult;
+use Grouch\Contract\ParserInterface;
 use Grouch\HttpClient;
-use Grouch\parsers\AcMovies;
-use Grouch\parsers\Egyptian;
 use Grouch\Rss\RssBuilder;
 
 // ---------------------------------------------------------------------------
@@ -50,10 +49,14 @@ $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 // requests here.
 $segment = trim(basename($path), '/');
 
-$parsers = [
-    'ac-movies' => new AcMovies(),
-    'egyptian'  => new Egyptian(),
-];
+// Auto-discover all parsers in src/parsers/. Each parser must define ROUTE.
+$parsers = [];
+foreach (glob(__DIR__ . '/src/parsers/*.php') as $file) {
+    $class = 'Grouch\\parsers\\' . basename($file, '.php');
+    if (is_a($class, ParserInterface::class, true) && defined("$class::ROUTE")) {
+        $parsers[$class::ROUTE] = new $class();
+    }
+}
 
 if (!isset($parsers[$segment])) {
     http_response_code(404);

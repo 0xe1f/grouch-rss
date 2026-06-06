@@ -33,6 +33,8 @@ use Grouch\Contract\ParseResult;
  */
 class AcMovies implements ParserInterface
 {
+    public const string ROUTE = 'ac-movies';
+
     private const HOME_URL = 'https://www.americancinematheque.com/now-showing/';
     private const FEED_URL = 'https://www.americancinematheque.com/wp-json/wp/v2/algolia_get_events'
         . '?environment=production&startDate=%d&endDate=%d';

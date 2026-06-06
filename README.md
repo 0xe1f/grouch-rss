@@ -123,18 +123,15 @@ class YourParser implements ParserInterface
 | `summary`     | `string`            | No       | Plain-text fallback when `html` is empty           |
 | `author`      | `string`            | No       |                                                    |
 
-### 2. Register the route
+### 2. Define the route name
 
-In `index.php`, add your parser to the `$parsers` map:
+Add a `ROUTE` constant to your parser class. This is the URL path segment the feed will be served at:
 
 ```php
-$parsers = [
-    // existing parsers …
-    'your-feed' => new YourParser(),
-];
+public const string ROUTE = 'your-feed';
 ```
 
-The key becomes the URL path: `/your-feed?token=…`.
+That's it — `index.php` auto-discovers every parser in `src/parsers/` that implements `ParserInterface` and defines `ROUTE`. The feed will be available at `/your-feed?token=…`.
 
 ### 3. Create the source fixture
 
