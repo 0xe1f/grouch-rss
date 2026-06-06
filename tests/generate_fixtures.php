@@ -65,10 +65,11 @@ $fixtureDir = __DIR__ . '/fixtures';
 generate(
     name:      'amecine',
     getResult: static function () use ($fixtureDir): ParseResult {
+        $home   = file_get_contents("$fixtureDir/amecine_home.html");
         $source = file_get_contents("$fixtureDir/amecine_source.json");
         return (new AcMovies())->parse(
             'https://www.americancinematheque.com/now-showing/',
-            static fn(string $url): string => $source,
+            static fn(string $url): string => str_contains($url, 'algolia_get_events') ? $source : $home,
         );
     },
     outFile: "$fixtureDir/amecine_expected.json",

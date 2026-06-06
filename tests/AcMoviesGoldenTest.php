@@ -32,11 +32,14 @@ class AcMoviesGoldenTest extends GoldenTestCase
 
     protected function getResult(): ParseResult
     {
+        $home   = file_get_contents(__DIR__ . '/fixtures/amecine_home.html');
         $source = file_get_contents(__DIR__ . '/fixtures/amecine_source.json');
 
-        // The parser fetches a date-ranged URL; the mock always returns the
-        // captured Algolia snapshot regardless of the requested URL.
-        $fetch = static fn(string $url): string => $source;
+        $fetch = static function (string $url) use ($home, $source): string {
+            // First call fetches the homepage to extract the Algolia environment;
+            // subsequent calls fetch the Algolia API endpoint.
+            return str_contains($url, 'algolia_get_events') ? $source : $home;
+        };
 
         $parser = new AcMovies();
         return $parser->parse('https://www.americancinematheque.com/now-showing/', $fetch);

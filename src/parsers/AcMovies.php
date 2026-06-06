@@ -37,7 +37,7 @@ class AcMovies implements ParserInterface
 
     private const HOME_URL = 'https://www.americancinematheque.com/now-showing/';
     private const FEED_URL = 'https://www.americancinematheque.com/wp-json/wp/v2/algolia_get_events'
-        . '?environment=production&startDate=%d&endDate=%d';
+        . '?environment=%s&startDate=%d&endDate=%d';
     private const TZ = 'US/Pacific';
 
     public function parse(string $feedUrl, callable $fetch): ParseResult
@@ -47,7 +47,7 @@ class AcMovies implements ParserInterface
         $start = $now->setTime(0, 0, 0);
         $end   = $start->modify('+30 days');
 
-        $apiUrl = sprintf(self::FEED_URL, $start->getTimestamp(), $end->getTimestamp());
+        $apiUrl = sprintf(self::FEED_URL, $this->fetchEnvironment($fetch), $start->getTimestamp(), $end->getTimestamp());
         $body   = $fetch($apiUrl);
         $doc    = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
 
@@ -67,13 +67,23 @@ class AcMovies implements ParserInterface
         );
     }
 
+    private function fetchEnvironment(callable $fetch): string
+    {
+        $html = $fetch(self::HOME_URL);
+        if (preg_match('/window\.algolia_env\s*=\s*"([^"]+)"/', $html, $m)) {
+            return $m[1];
+        }
+        return 'production';
+    }
+
     private function makeEntry(array $blob, DateTimeImmutable $now, DateTimeZone $tz): ParseEntry
     {
         $startDt = DateTimeImmutable::createFromFormat(
             'Ymd H:i:s',
             ($blob['event_start_date'] ?? '') . ' ' . ($blob['event_start_time'] ?? '00:00:00'),
             $tz,
-        ) ?: $now;
+        ) ?: DateTimeImmutable::createFromFormat('Ymd', $blob['event_start_date'] ?? '19700101', $tz)
+          ?: new DateTimeImmutable('@0');
 
         $title = trim($blob['title'] ?? '');
         $title = $title . ' (' . $startDt->format('D M j') . ')';
