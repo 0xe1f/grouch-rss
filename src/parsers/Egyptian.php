@@ -35,6 +35,7 @@ class Egyptian implements ParserInterface
 {
     public const string ROUTE = 'egyptian';
 
+    private const TITLE           = 'Egyptian Theatre Showtimes';
     private const HOME_URL        = 'https://www.egyptiantheatre.com/';
     private const TITLES_URL      = 'https://www.egyptiantheatre.com/special-engagements';
     private const IMAGE_PREFIX    = 'https://cms.ntflxthtrs.com/';
@@ -51,7 +52,7 @@ class Egyptian implements ParserInterface
         $entries = array_map(fn(array $blob) => $this->makeEntry($blob), $films);
 
         return new ParseResult(
-            title:       $meta['og:title'] ?? 'Egyptian Theatre',
+            title:       $meta['og:title'] ?? self::TITLE,
             feedUrl:     $feedUrl,
             siteUrl:     self::HOME_URL,
             description: $meta['og:description'] ?? '',

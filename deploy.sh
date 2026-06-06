@@ -6,7 +6,7 @@
 #
 #   <destination>    Local path or rsync/scp-style remote, e.g.
 #                      /var/www/html/feeds          (local)
-#                      akop@example.com:public_html/feeds  (remote)
+#                      foo@example.com:public_html/feeds   (remote)
 #
 #   --skip-config    Do not copy config.php (use after first deployment
 #                    if you've customised the token on the server)
@@ -35,7 +35,7 @@ done
 if [[ $# -ne 1 ]]; then
     echo "Usage: ./deploy.sh [--skip-config] <destination>" >&2
     echo "  local:  ./deploy.sh /var/www/html/feeds" >&2
-    echo "  remote: ./deploy.sh akop@example.com:public_html/feeds" >&2
+    echo "  remote: ./deploy.sh foo@example.com:public_html/feeds" >&2
     exit 1
 fi
 

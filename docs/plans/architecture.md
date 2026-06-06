@@ -10,21 +10,47 @@
 ## Request flow
 
 ```
-Feed reader
-  └─ GET /ac-movies?token=…
+Browser / feed reader
+  └─ GET /?token=…                         (no feed segment)
+  │    └─ Apache mod_rewrite → index.php
+  │         ├─ Auth::requireBearer()       validates token (401 on failure)
+  │         └─ renderIndex()               HTML page with <link rel="alternate">
+  │                                        tags and human-readable feed list
+  │
+  └─ GET /ac-movies?token=…               (known feed segment)
        └─ Apache mod_rewrite → index.php
-            ├─ Auth::requireBearer()        validates token
-            ├─ $parsers[$segment]->parse()  fetches & transforms data
-            │    └─ HttpClient::make()      injectable fetch callable
-            ├─ RssBuilder                   assembles RSS 2.0 XML
+            ├─ Auth::requireBearer()       validates token (401 on failure)
+            ├─ new AcMovies()              only this parser file is autoloaded
+            ├─ parser->parse()             fetches & transforms data
+            │    └─ HttpClient::make()     injectable fetch callable
+            ├─ RssBuilder                  assembles RSS 2.0 XML
             └─ echo $xml
 ```
+
+## Parser registry
+
+Parsers are registered explicitly in `index.php`:
+
+```php
+$parsers = [
+    'ac-movies' => ['class' => \Grouch\parsers\AcMovies::class, 'name' => 'American Cinematheque'],
+    'egyptian'  => ['class' => \Grouch\parsers\Egyptian::class, 'name' => 'Egyptian Theatre'],
+];
+```
+
+`::class` resolves to a string at compile time without triggering the autoloader,
+so only the parser matching the requested route is ever loaded. `name` is the
+human-readable label shown in the HTML index and in feed reader subscription
+dialogs (via `<link rel="alternate" title="…">`).
+
+Each parser class also declares `public const string ROUTE` matching its registry
+key, as self-documentation.
 
 ## Namespace layout
 
 ```
 Grouch\
-  Auth              bearer-token gate (header or ?token= query param)
+  Auth              bearer-token gate; verifyBearer() (bool) and requireBearer() (halts on failure)
   HttpClient        thin cURL wrapper; returns an injectable callable
   Contract\
     ParserInterface   parse(feedUrl, fetch): ParseResult
@@ -46,6 +72,10 @@ Tokens are compared with `hash_equals` to prevent timing attacks.
 The `?token=` query parameter is parsed directly from `$_SERVER['QUERY_STRING']`
 (not `$_GET`) so that literal `+` characters in base64 tokens are not silently
 converted to spaces.
+
+All routes — including the HTML index page — require a valid token. The index
+page embeds the token in all feed URLs so a user who visits with a valid token
+can subscribe to any feed directly from the listing.
 
 ## Testing strategy
 
@@ -71,6 +101,6 @@ no framework, no build step. `src/autoload.php` is a hand-written PSR-4 loader
 for the `Grouch\` namespace.
 
 `deploy.sh` uses `rsync` to transfer source files and `ssh` to set permissions.
-Development files (`tests/`, `docker/`, `phpunit.xml`, `deploy.sh`) are excluded
-from the transfer. `config.php` (containing the secret token) is included by
-default; pass `--skip-config` to leave an existing server copy untouched.
+Development files (`tests/`, `docker/`, `phpunit.xml`, `deploy.sh`, `docs/`) are
+excluded from the transfer. `config.php` (containing the secret token) is included
+by default; pass `--skip-config` to leave an existing server copy untouched.

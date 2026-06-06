@@ -35,6 +35,7 @@ class AcMovies implements ParserInterface
 {
     public const string ROUTE = 'ac-movies';
 
+    private const TITLE = 'Now Showing - American Cinematheque';
     private const HOME_URL = 'https://www.americancinematheque.com/now-showing/';
     private const FEED_URL = 'https://www.americancinematheque.com/wp-json/wp/v2/algolia_get_events'
         . '?environment=%s&startDate=%d&endDate=%d';
@@ -59,7 +60,7 @@ class AcMovies implements ParserInterface
         $entries = array_map(fn(array $hit) => $this->makeEntry($hit, $now, $tz), array_values($hits));
 
         return new ParseResult(
-            title:       'Now Showing - American Cinematheque',
+            title:       self::TITLE,
             feedUrl:     $feedUrl,
             siteUrl:     self::HOME_URL,
             description: '',
@@ -78,12 +79,14 @@ class AcMovies implements ParserInterface
 
     private function makeEntry(array $blob, DateTimeImmutable $now, DateTimeZone $tz): ParseEntry
     {
-        $startDt = DateTimeImmutable::createFromFormat(
-            'Ymd H:i:s',
-            ($blob['event_start_date'] ?? '') . ' ' . ($blob['event_start_time'] ?? '00:00:00'),
-            $tz,
-        ) ?: DateTimeImmutable::createFromFormat('Ymd', $blob['event_start_date'] ?? '19700101', $tz)
-          ?: new DateTimeImmutable('@0');
+        $date = $blob['event_start_date'] ?? '';
+        $time = $blob['event_start_time'] ?? '00:00:00';
+        // Normalise H:i → H:i:s so createFromFormat always gets seconds.
+        if (preg_match('/^\d{1,2}:\d{2}$/', $time)) {
+            $time .= ':00';
+        }
+        $startDt = DateTimeImmutable::createFromFormat('Ymd H:i:s', "$date $time", $tz)
+            ?: (new DateTimeImmutable($date ?: '1970-01-01', $tz))->setTime(0, 0, 0);
 
         $title = trim($blob['title'] ?? '');
         $title = $title . ' (' . $startDt->format('D M j') . ')';

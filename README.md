@@ -20,10 +20,12 @@ docker compose -f docker/docker-compose.yml run --rm test-live
 ```
 
 The dev server reads the token from the `FEED_TOKEN` environment variable,
-which is set to `dev` in `docker-compose.yml`. Pull a feed with:
+which is set to `dev` in `docker-compose.yml`. Visit the feed index or pull
+a specific feed:
 
 ```
-http://localhost:8080/ac-movies?token=dev
+http://localhost:8080/?token=dev          # HTML index listing all feeds
+http://localhost:8080/ac-movies?token=dev # specific feed
 ```
 
 ## Configuration
@@ -48,10 +50,10 @@ Every request must include the token via either:
 
 ```bash
 # Deploy to a remote server (copies config.php by default)
-./deploy.sh akop@example.com:public_html/feeds
+./deploy.sh foo@example.com:public_html/feeds
 
 # Deploy without overwriting an existing config.php on the server
-./deploy.sh --skip-config akop@example.com:public_html/feeds
+./deploy.sh --skip-config foo@example.com:public_html/feeds
 
 # Deploy to a local directory
 ./deploy.sh /var/www/html/feeds
@@ -64,7 +66,8 @@ after transfer.
 
 ### 1. Create the parser class
 
-Add `src/parsers/YourParser.php` implementing `Grouch\Contract\ParserInterface`:
+Add `src/parsers/YourParser.php` implementing `Grouch\Contract\ParserInterface`.
+Declare a `ROUTE` constant for the URL path segment the feed will be served at:
 
 ```php
 <?php
@@ -80,6 +83,8 @@ use Grouch\Contract\ParseResult;
 
 class YourParser implements ParserInterface
 {
+    public const string ROUTE = 'your-feed';
+
     public function parse(string $feedUrl, callable $fetch): ParseResult
     {
         // $fetch is fn(string $url): string
@@ -123,15 +128,18 @@ class YourParser implements ParserInterface
 | `summary`     | `string`            | No       | Plain-text fallback when `html` is empty           |
 | `author`      | `string`            | No       |                                                    |
 
-### 2. Define the route name
+### 2. Register the parser
 
-Add a `ROUTE` constant to your parser class. This is the URL path segment the feed will be served at:
+Add an entry to the `$parsers` map in `index.php`:
 
 ```php
-public const string ROUTE = 'your-feed';
+$parsers = [
+    // existing parsers …
+    'your-feed' => ['class' => \Grouch\parsers\YourParser::class, 'name' => 'Your Feed Name'],
+];
 ```
 
-That's it — `index.php` auto-discovers every parser in `src/parsers/` that implements `ParserInterface` and defines `ROUTE`. The feed will be available at `/your-feed?token=…`.
+`name` is the human-readable label shown in the HTML index and in feed reader subscription dialogs. The feed will be available at `/your-feed?token=…`.
 
 ### 3. Create the source fixture
 
@@ -189,15 +197,19 @@ Register it in `phpunit.xml`:
 // tests/YourParserLiveTest.php
 namespace Grouch\Tests;
 
-use Grouch\HttpClient;
+use Grouch\Contract\ParserInterface;
 use Grouch\parsers\YourParser;
 
 class YourParserLiveTest extends LiveTestCase
 {
-    protected function getResult(): \Grouch\Contract\ParseResult
+    protected function getParser(): ParserInterface
     {
-        $parser = new YourParser();
-        return $parser->parse('https://example.com/your-feed', HttpClient::make());
+        return new YourParser();
+    }
+
+    protected function getFeedUrl(): string
+    {
+        return 'https://example.com/your-feed';
     }
 }
 ```

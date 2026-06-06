@@ -20,7 +20,6 @@ require_once __DIR__ . '/src/autoload.php';
 
 use Grouch\Auth;
 use Grouch\Contract\ParseResult;
-use Grouch\Contract\ParserInterface;
 use Grouch\HttpClient;
 use Grouch\Rss\RssBuilder;
 
@@ -40,14 +39,13 @@ defined('FEED_TOKEN') || define('FEED_TOKEN', (string) getenv('FEED_TOKEN'));
 $path    = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 $segment = str_ends_with($path, '/') ? '' : trim(basename($path), '/');
 
-// Auto-discover all parsers in src/parsers/. Each parser must define ROUTE.
-$parsers = [];
-foreach (glob(__DIR__ . '/src/parsers/*.php') as $file) {
-    $class = 'Grouch\\parsers\\' . basename($file, '.php');
-    if (is_a($class, ParserInterface::class, true) && defined("$class::ROUTE")) {
-        $parsers[$class::ROUTE] = new $class();
-    }
-}
+// Explicit parser registry. Add new parsers here.
+// 'class' uses ::class (compile-time string, no autoload) so only the matched
+// parser's file is loaded per request.
+$parsers = [
+    'ac-movies' => ['class' => \Grouch\parsers\AcMovies::class, 'name' => 'Now Showing - American Cinematheque'],
+    'egyptian'  => ['class' => \Grouch\parsers\Egyptian::class, 'name' => 'Egyptian Theatre Showtimes'],
+];
 
 // ---------------------------------------------------------------------------
 // Index page — shown when no feed segment is present in the URL.
@@ -67,7 +65,8 @@ $selfUrl = (isset($_SERVER['HTTPS']) ? 'https' : 'http')
     . $_SERVER['REQUEST_URI'];
 
 try {
-    $result = $parsers[$segment]->parse($selfUrl, HttpClient::make());
+    $parser = new $parsers[$segment]['class']();
+    $result = $parser->parse($selfUrl, HttpClient::make());
     $xml    = buildXml($result);
 } catch (\Throwable $e) {
     http_response_code(502);
@@ -109,9 +108,9 @@ function buildXml(ParseResult $result): string
 function renderIndex(array $parsers, string $token): void
 {
     $feeds = [];
-    foreach ($parsers as $route => $_) {
+    foreach ($parsers as $route => $entry) {
         $url = $route . ($token !== '' ? '?token=' . rawurlencode($token) : '');
-        $feeds[] = ['route' => $route, 'url' => $url];
+        $feeds[] = ['name' => $entry['name'], 'url' => $url];
     }
 
     header('Content-Type: text/html; charset=utf-8');
@@ -125,7 +124,7 @@ function renderIndex(array $parsers, string $token): void
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Feeds</title>
 <?php foreach ($feeds as $f): ?>
-<link rel="alternate" type="application/rss+xml" title="<?= $esc($f['route']) ?>" href="<?= $esc($f['url']) ?>">
+<link rel="alternate" type="application/rss+xml" title="<?= $esc($f['name']) ?>" href="<?= $esc($f['url']) ?>">
 <?php endforeach; ?>
 <style>
   body { font: 1rem/1.6 system-ui, sans-serif; max-width: 42rem; margin: 2rem auto; padding: 0 1rem; color: #222; }
@@ -141,7 +140,7 @@ function renderIndex(array $parsers, string $token): void
 <h1>Feeds</h1>
 <ul>
 <?php foreach ($feeds as $f): ?>
-<li><a href="<?= $esc($f['url']) ?>"><?= $esc($f['route']) ?></a><span>(<?= $esc($f['url']) ?>)</span></li>
+<li><a href="<?= $esc($f['url']) ?>"><?= $esc($f['name']) ?></a><span>(<?= $esc($f['url']) ?>)</span></li>
 <?php endforeach; ?>
 </ul>
 </body>
